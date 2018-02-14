@@ -4,9 +4,9 @@ from layers import *
 
 config = {}
 #config['anchors'] = [ 10.0, 30.0, 60.]
-config['anchors'] = [5.0, 10.0, 15.0]
-config['channel'] = 4
-config['crop_size'] = [128,128]
+config['anchors'] = [5.0, 10.0, 20., 50., 100.0]
+config['channel'] = 3
+config['crop_size'] = [256, 256]
 config['stride'] = 4
 config['max_stride'] = 16
 config['num_neg'] = 800
@@ -21,7 +21,7 @@ config['sizelim2'] = 30
 config['sizelim3'] = 40
 config['aug_scale'] = True
 config['r_rand_crop'] = 0.1
-config['pad_value'] = 255
+config['pad_value'] = 0
 config['augtype'] = {'flip':False,'swap':False,'scale':False,'rotate':False}
 
 # segmentation gives single lung but annotation is in other lung

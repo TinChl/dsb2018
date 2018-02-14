@@ -9,7 +9,7 @@ config = {'preprocess_result_path':'/home/danielrk/lung/input/tianchi_prep/',
           """
 # Preprocessing using preserved HU in dilated part of mask
 config = {'preprocess_result_path':'/home/htang6/workspace/data/dsb2018/preprocessed_result',
-          'data_path':'/home/htang6/workspace/data/dsb2018/stage1_train',
+          'data_path':'/home/htang6/workspace/data/dsb2018/stage1_test',
           'annos_path':'/home/htang6/workspace/data/house_detection/',
           'filenames':'/home/htang6/workspace/data/house_detection/filenames.txt'
           }

@@ -77,6 +77,7 @@ class SplitComb():
             splits[0].shape[2],
             splits[0].shape[3]), np.float32)
 
+        # print output.shape
         idx = 0
         for ih in range(nh):
             for iw in range(nw):
@@ -85,7 +86,7 @@ class SplitComb():
                 sw = iw * side_len
                 ew = (iw + 1) * side_len
 
-                split = splits[idx][margin:margin + side_len, margin:margin + side_len, margin:margin + side_len]
+                split = splits[idx][margin:margin + side_len, margin:margin + side_len]
                 output[sh:eh, sw:ew] = split
                 idx += 1
 

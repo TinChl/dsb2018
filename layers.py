@@ -284,21 +284,22 @@ def iou(box0, box1):
 
     w0 = box0[3] / 2
     h0 = box0[2] / 2
-    s0 = box0[:2] - np.array(h0, w0)
-    e0 = box0[:2] + np.array(h0, w0)
+    s0 = box0[:2] - np.array([h0, w0])
+    e0 = box0[:2] + np.array([h0, w0])
 
-    w1 = box0[3] / 2
-    h1 = box0[2] / 2
-    s1 = box1[:2] - np.array(h1, w1)
-    e1 = box1[:2] + np.array(h1, w1)
+    w1 = box1[3] / 2
+    h1 = box1[2] / 2
+    s1 = box1[:2] - np.array([h1, w1])
+    e1 = box1[:2] + np.array([h1, w1])
 
     overlap = []
     for i in range(len(s0)):
         overlap.append(max(0, min(e0[i], e1[i]) - max(s0[i], s1[i])))
 
+
     intersection = overlap[0] * overlap[1]
     union = box0[2] * box0[3] + box1[2] * box1[3] - intersection
-    return intersection / union
+    return intersection / float(union)
 
 def acc(pbb, lbb, conf_th, nms_th, detect_th):
     pbb = pbb[pbb[:, 0] >= conf_th]

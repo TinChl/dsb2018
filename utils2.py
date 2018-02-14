@@ -25,9 +25,9 @@ def showTargetImgComp(img, plt, targets=None, annos=None, d=None, t=None, voxelW
 
     if annos is not None:
         for t in annos:
-            y = t[0] - target[0] + voxelWidth / 2 - t[2] / 2.0
-            x = t[1] - target[1] + voxelWidth / 2 - t[3] / 2.0
-            yx_nod_rect = patches.Rectangle((x, y),t[2],t[3],
+            y = t[0] - t[2] / 2.0
+            x = t[1] - t[3] / 2.0
+            yx_nod_rect = patches.Rectangle((x, y),t[3],t[2],
                      linewidth=1,edgecolor='red',facecolor='none')
             ax.add_patch(yx_nod_rect)
 

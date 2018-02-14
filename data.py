@@ -22,6 +22,7 @@ class DataBowl3Detector(Dataset):
         self.augtype = config['augtype']
         self.pad_value = config['pad_value']
         self.split_comber = split_comber
+        self.config = config
         idcs = np.genfromtxt(split_path, dtype=str)
         if not idcs.shape:
             idcs = np.array([idcs])
@@ -91,6 +92,8 @@ class DataBowl3Detector(Dataset):
                 else:
                     imgs = np.load(filename)
                     self.cache[filename] = imgs
+
+                imgs = imgs[:self.config['channel'],:,:]
                 bboxes = self.sample_bboxes[int(bbox[0])]
                 isScale = self.augtype['scale'] and (self.phase=='train')
                 sample, target, bboxes, coord = self.crop(imgs, bbox[1:], bboxes,isScale,is_random_crop)
@@ -105,22 +108,26 @@ class DataBowl3Detector(Dataset):
                 else:
                     imgs = np.load(filename)
                     self.cache[filename] = imgs
+                imgs = imgs[:self.config['channel'],:,:]
                 bboxes = self.sample_bboxes[randimid]
                 isScale = self.augtype['scale'] and (self.phase=='train')
                 sample, target, bboxes, coord = self.crop(imgs, [], bboxes,isScale=False,isRand=True)
             # if sample.shape[1] != 128 or sample.shape[2] != 128 or sample.shape[3] != 128:
             #     print filename, sample.shape
             label = self.label_mapping(sample.shape[1:], target, bboxes)
-            sample = (sample.astype(np.float32)-128)/128
+            # sample = (sample.astype(np.float32) - 0.5)
+            sample = normalization(sample)
             #if filename in self.kagglenames and self.phase=='train':
             #    label[label==-1]=0
             return torch.from_numpy(sample), torch.from_numpy(label), coord
         else:
             imgs = np.load(self.filenames[idx])
+            imgs = imgs[:self.config['channel'],:,:]
             bboxes = self.sample_bboxes[idx]
             nh, nw = imgs.shape[1:]
             ph = int(np.ceil(float(nh) / self.stride)) * self.stride
             pw = int(np.ceil(float(nw) / self.stride)) * self.stride
+            imgs = normalization(imgs)
             imgs = np.pad(imgs, [[0,0], [0, ph - nh], [0, pw - nw]], 'constant',constant_values = self.pad_value)
 
             xx,yy = np.meshgrid(np.linspace(-0.5,0.5,imgs.shape[1]/self.stride),
@@ -132,7 +139,8 @@ class DataBowl3Detector(Dataset):
                                                    max_stride = self.split_comber.max_stride/self.stride,
                                                    margin = self.split_comber.margin/self.stride)
             assert np.all(nhw==nhw2)
-            imgs = (imgs.astype(np.float32)-128)/128
+            # imgs = (imgs.astype(np.float32) - 0.5)
+            # sample = normalization(sample)
             #print imgs.shape
             return torch.from_numpy(imgs), bboxes, torch.from_numpy(coord2), np.array(nhw)
 
@@ -146,6 +154,20 @@ class DataBowl3Detector(Dataset):
         else:
             return len(self.sample_bboxes)
 
+def normalization(img):
+    n_channel = img.shape[0]
+    img = img.astype(np.float32)
+    for i in range(n_channel):
+        canal = img[:,:,i]
+        canal = canal - canal.min()
+        canalmax = canal.max()
+
+        if canalmax != 0.0:
+            factor = 1/canalmax
+            canal = canal * factor - 0.5
+        img[:,:,i] = canal
+
+    return img
 
 def augment(sample, target, bboxes, coord, ifflip = True, ifrotate=True, ifswap = True):
     #                     angle1 = np.random.rand()*180
@@ -218,11 +240,13 @@ class Crop(object):
                 s = np.max([imgs.shape[i+1]-crop_size[i]/2,imgs.shape[i+1]/2+bound_size])
                 e = np.min([crop_size[i]/2,              imgs.shape[i+1]/2-bound_size])
                 target = np.array([np.nan,np.nan,np.nan,np.nan])
+
+            # jitter = np.random.randint(0, 4)
+            # start.append(int(s + jitter))
             if s>e:
                 start.append(np.random.randint(e,s))#!
             else:
                 start.append(int(target[i])-crop_size[i]/2+np.random.randint(-bound_size/2,bound_size/2))
-            # start.append(int(s))
 
 
         normstart = np.array(start).astype('float32')/np.array(imgs.shape[1:])-0.5
@@ -323,38 +347,40 @@ class LabelMapping(object):
             return label
 
         # Label all the anchors
-        for bbox in bboxes:
-            ih, iw, ia = [], [], []
-            for i, anchor in enumerate(anchors):
-                iih, iiw = select_samples(bbox, anchor, th_pos, oh, ow)
-                ih.append(iih)
-                iw.append(iiw)
-                ia.append(i * np.ones((len(iih),), np.int64))
-            ih = np.concatenate(ih, 0)
-            iw = np.concatenate(iw, 0)
-            ia = np.concatenate(ia, 0)
-            flag = True
+        # for bbox in bboxes:
+        bbox = target
+        # for bbox in bboxes:
+        ih, iw, ia = [], [], []
+        for i, anchor in enumerate(anchors):
+            iih, iiw = select_samples(bbox, anchor, th_pos, oh, ow)
+            ih.append(iih)
+            iw.append(iiw)
+            ia.append(i * np.ones((len(iih),), np.int64))
+        ih = np.concatenate(ih, 0)
+        iw = np.concatenate(iw, 0)
+        ia = np.concatenate(ia, 0)
+        flag = True
 
-            # if no anchor box gives sufficient IOU, pick closest one
-            if len(ih) == 0:
-                pos = []
-                for i in range(2):
-                    pos.append(max(0, int(np.round((bbox[i] - offset) / stride))))
+        # if no anchor box gives sufficient IOU, pick closest one
+        if len(ih) == 0:
+            pos = []
+            for i in range(2):
+                pos.append(max(0, int(np.round((bbox[i] - offset) / stride))))
 
-                #TO-DO: should change according to rectangle
-                idx = np.argmin(np.abs(np.log(bbox[3] / anchors)))
-                pos.append(idx)
-                flag = False
-            else:
-                idx = random.sample(range(len(ih)), 1)[0]
-                pos = [ih[idx], iw[idx], ia[idx]]
-            # print pos
-            dh = (bbox[0] - oh[pos[0]]) / anchors[pos[2]]
-            dw = (bbox[1] - ow[pos[1]]) / anchors[pos[2]]
-            dy = np.log(bbox[2] / anchors[pos[2]])
-            dx = np.log(bbox[3] / anchors[pos[2]])
-            label[pos[0], pos[1], pos[2], :] = [1, dh, dw, dy, dx]
-        
+            #TO-DO: should change according to rectangle
+            idx = np.argmin(np.abs(np.log(bbox[3] / anchors)))
+            pos.append(idx)
+            flag = False
+        else:
+            idx = random.sample(range(len(ih)), 1)[0]
+            pos = [ih[idx], iw[idx], ia[idx]]
+        # print pos
+        dh = (bbox[0] - oh[pos[0]]) / anchors[pos[2]]
+        dw = (bbox[1] - ow[pos[1]]) / anchors[pos[2]]
+        dy = np.log(bbox[2] / anchors[pos[2]])
+        dx = np.log(bbox[3] / anchors[pos[2]])
+        label[pos[0], pos[1], pos[2], :] = [1, dh, dw, dy, dx]
+            
         return label
 
 def select_samples(bbox, anchor, th, oh, ow):

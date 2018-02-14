@@ -32,7 +32,7 @@ parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 parser.add_argument('-b', '--batch-size', default=16, type=int,
                     metavar='N', help='mini-batch size (default: 16)')
-parser.add_argument('--optim', default='adam', type=str, metavar='OPTIM',
+parser.add_argument('--optim', default='sgd', type=str, metavar='OPTIM',
                     help='training optimizer: {adam, sgd}')
 parser.add_argument('--no-sched', action='store_true',
                     help='turn off LR scheduling')
@@ -125,8 +125,8 @@ def main():
     datadir = config_training['preprocess_result_path'] if args.data is None else args.data
 
     if args.test == 1:
-        margin = 0
-        sidelen = 1024
+        margin = 32
+        sidelen = 128
 
         split_comber = SplitComb(sidelen,config['max_stride'],config['stride'],margin,config['pad_value'])
 
@@ -214,7 +214,7 @@ def train(data_loader, net, loss, epoch, optimizer, get_lr, get_num_hard, save_f
 
 
     net.train()
-    if args.optim == 'sgd' and not args.no_sched:
+    if args.optim == 'sgd':
         lr = get_lr(epoch)
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr
@@ -323,11 +323,11 @@ def test(data_loader, net, get_pbb, save_dir, config, test_set):
         data = data[0][0]
         coord = coord[0][0]
         isfeat = False
+            
         if 'output_feature' in config:
             if config['output_feature']:
                 isfeat = True
         n_per_run = args.n_test
-        print(data.size())
         splitlist = range(0,len(data)+1,n_per_run)
         if splitlist[-1]!=len(data):
             splitlist.append(len(data))
@@ -362,7 +362,7 @@ def test(data_loader, net, get_pbb, save_dir, config, test_set):
         e = time.time()
 
         #pbb = nms(pbb[pbb[:,0] > 0], 0.1) # Save only unique predicted bboxes with threshold sig(0) = 0.5
-        print 'total number of pbbs if not use 5000: ', len(pbb)
+        print 'total number of pbbs if not use %d: ' % (n_pbbs_saved), len(pbb)
         pbb = pbb[np.argsort(pbb[:,0])[::-1]][:n_pbbs_saved]
         pbb = nms(pbb, 0.1)
         np.save(os.path.join(save_dir, name+'_pbb.npy'), pbb)
